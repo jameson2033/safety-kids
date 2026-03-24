@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+    <script>
+        // GitHub Pages SPA redirect hack
+        // This file handles all 404s and redirects to index.html with the original path
+        const path = window.location.pathname.replace('/safety-kids', '');
+        const queryString = window.location.search;
+        window.location.replace('/safety-kids/index.html?redirect=' + encodeURIComponent(path + queryString));
+    </script>
+</head>
+<body>
+    Redirecting...
+</body>
+</html>
