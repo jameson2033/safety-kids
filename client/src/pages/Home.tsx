@@ -3,9 +3,12 @@
  * Comic Book style, bold colors, interactive scenarios for 4-year-old child
  * Colors: Deep Blue, Yellow, Red — comic book palette
  * Fonts: Fredoka One (headings), Nunito (body)
+ * Features: Sound effects, progress tracking, quiz mode
  */
 
 import { useState, useEffect, useRef } from "react";
+import { useSound } from "@/hooks/useSound";
+import { useProgress } from "@/hooks/useProgress";
 
 // ─── Asset URLs ────────────────────────────────────────────────────────────────
 const HERO_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663470554599/C8x83niLz74d5Eamwjtmva/hero-banner-Ku2cQgRHGfhtzVRerE5mJ2.webp";
@@ -156,7 +159,8 @@ function Confetti({ active }: { active: boolean }) {
 }
 
 // ─── Rule Card Component ───────────────────────────────────────────────────────
-function RuleCard({ rule, index }: { rule: Rule; index: number }) {
+function RuleCard({ rule, index, onComplete }: { rule: Rule; index: number; onComplete: (ruleId: number, correct: boolean) => void }) {
+  const { playSound } = useSound();
   const [phase, setPhase] = useState<"intro" | "question" | "result">("intro");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -173,12 +177,17 @@ function RuleCard({ rule, index }: { rule: Rule; index: number }) {
   }, []);
 
   const handleAnswer = (idx: number) => {
+    const isCorrect = rule.options[idx].correct;
+    playSound(isCorrect ? 'correct' : 'incorrect');
     setSelectedOption(idx);
     setPhase("result");
-    if (rule.options[idx].correct) {
+    
+    if (isCorrect) {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 1500);
     }
+
+    onComplete(rule.id, isCorrect);
   };
 
   const reset = () => {
@@ -360,11 +369,17 @@ function ProgressStars({ total }: { total: number }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function Home() {
   const [heroVisible, setHeroVisible] = useState(false);
+  const { progress, completeRule, getCompletionPercentage } = useProgress();
+  const completionPercentage = getCompletionPercentage();
 
   useEffect(() => {
     const timer = setTimeout(() => setHeroVisible(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleRuleComplete = (ruleId: number, correct: boolean) => {
+    completeRule(ruleId, correct);
+  };
 
   return (
     <div className="min-h-screen halftone-bg">
@@ -454,6 +469,46 @@ export default function Home() {
         </svg>
       </section>
 
+      {/* ── Progress Section ── */}
+      <section className="container py-6 bg-gradient-to-b from-blue-50 to-transparent">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-sm font-bold uppercase tracking-wider text-blue-700 mb-1">📊 Твой прогресс</div>
+            <div className="text-3xl font-black" style={{ fontFamily: "'Fredoka One', cursive", color: "#1A237E" }}>
+              {completionPercentage}% завершено
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {Array.from({ length: 5 }, (_, i) => {
+              const completed = progress.completedRules.some(r => r.ruleId === i + 1 && r.completed);
+              return (
+                <div
+                  key={i}
+                  className="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg border-3 transition-all"
+                  style={{
+                    backgroundColor: completed ? "#FFC107" : "#E8EAF6",
+                    borderColor: completed ? "#F57F17" : "#3949AB",
+                    color: completed ? "#1A237E" : "#3949AB",
+                  }}
+                >
+                  {completed ? "✅" : i + 1}
+                </div>
+              );
+            })}
+          </div>
+          <a
+            href="/quiz"
+            className="px-6 py-3 rounded-xl font-black text-white text-base transition-all duration-200 hover:scale-[1.05] active:scale-[0.95] whitespace-nowrap"
+            style={{
+              backgroundColor: "#E53935",
+              boxShadow: "4px 4px 0px #B71C1C",
+            }}
+          >
+            🧪 Режим проверки
+          </a>
+        </div>
+      </section>
+
       {/* ── Intro Banner ── */}
       <section className="container py-8">
         <div
@@ -477,7 +532,7 @@ export default function Home() {
       <section className="container pb-12">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
           {rules.map((rule, i) => (
-            <RuleCard key={rule.id} rule={rule} index={i} />
+            <RuleCard key={rule.id} rule={rule} index={i} onComplete={handleRuleComplete} />
           ))}
 
           {/* Final card — Super Algorithm */}
